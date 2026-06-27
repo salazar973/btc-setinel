@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BTC SENTINEL — Cloud Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#08090c;--panel:#0d0f14;--line:#1d212b;--text:#c8cdd8;--dim:#5b6272;
+    --up:#27d17f;--down:#ff4d5e;--accent:#ffb02e;--cyan:#3fd2e0;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{background:var(--bg);color:var(--text);font-family:'JetBrains Mono',monospace;font-size:13px;min-height:100vh;}
+  header{display:flex;align-items:center;gap:14px;flex-wrap:wrap;padding:10px 16px;border-bottom:1px solid var(--line);background:var(--panel);}
+  header h1{font-size:14px;font-weight:700;letter-spacing:.18em;color:var(--accent);}
+  header h1 span{color:var(--dim);font-weight:400;}
+  .pill{font-size:11px;padding:3px 10px;border:1px solid var(--line);border-radius:3px;color:var(--dim);}
+  .pill.live{color:var(--up);border-color:var(--up);}
+  .pill.off{color:var(--down);border-color:var(--down);}
+  .paperTag{font-size:10px;letter-spacing:.12em;color:#08090c;background:var(--accent);padding:3px 8px;border-radius:3px;font-weight:700;}
+  #bigPrice{margin-left:auto;font-size:20px;font-weight:700;}
+  #bigPrice small{font-size:11px;color:var(--dim);font-weight:400;margin-right:6px;}
+  #setup{padding:16px;border-bottom:1px solid var(--line);background:#0a0c10;display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;}
+  #setup .field{flex:1;min-width:280px;}
+  #setup label{display:block;font-size:10px;letter-spacing:.12em;color:var(--dim);margin-bottom:5px;}
+  #setup input{width:100%;background:#0a0c10;border:1px solid var(--line);border-radius:3px;color:var(--text);font:inherit;padding:8px 10px;}
+  #setup input:focus{outline:1px solid var(--cyan);border-color:var(--cyan);}
+  button{font:inherit;font-weight:700;letter-spacing:.06em;border-radius:3px;cursor:pointer;padding:9px 16px;border:1px solid var(--cyan);background:#0d1f22;color:var(--cyan);}
+  button:hover{filter:brightness(1.25);}
+  main{display:grid;gap:12px;padding:12px 16px;grid-template-columns:1fr 300px;}
+  @media(max-width:900px){main{grid-template-columns:1fr;}}
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:4px;overflow:hidden;display:flex;flex-direction:column;}
+  .panel .hd{font-size:10px;letter-spacing:.2em;color:var(--dim);padding:7px 12px;border-bottom:1px solid var(--line);}
+  #chartWrap{position:relative;min-height:320px;flex:1;}
+  canvas{position:absolute;inset:0;width:100%;height:100%;}
+  .col{display:flex;flex-direction:column;gap:12px;}
+  .statGrid{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:12px;}
+  .stat{background:#0a0c10;border:1px solid var(--line);border-radius:3px;padding:9px 10px;}
+  .stat b{display:block;font-size:14px;font-weight:700;margin-top:3px;}
+  .stat span{font-size:9px;letter-spacing:.12em;color:var(--dim);}
+  .pos{color:var(--up);}.neg{color:var(--down);}
+  #feed{padding:8px 12px;font-size:11px;line-height:1.7;max-height:300px;overflow-y:auto;}
+  #feed div{white-space:nowrap;}
+  #feed .t{color:var(--dim);margin-right:8px;}
+  #feed .buy{color:var(--up);}#feed .sell{color:var(--down);}
+  .legend{display:inline-flex;gap:14px;font-size:10px;color:var(--dim);margin-left:10px;}
+  .legend i{display:inline-block;width:14px;height:2px;vertical-align:middle;margin-right:4px;}
+  .err{color:var(--down);padding:12px;font-size:12px;line-height:1.6;}
+</style>
+</head>
+<body>
+<header>
+  <h1>BTC SENTINEL <span>// cloud dashboard</span></h1>
+  <span class="paperTag">SIMULATED MONEY</span>
+  <span class="pill off" id="statePill">NOT LOADED</span>
+  <div id="bigPrice"><small>BTC/USD</small>—</div>
+</header>
+
+<div id="setup">
+  <div class="field">
+    <label for="url">RAW STATE.JSON URL (from your GitHub repo — see README step 6)</label>
+    <input type="text" id="url" placeholder="https://raw.githubusercontent.com/USERNAME/REPO/main/state.json" autocomplete="off" spellcheck="false">
+  </div>
+  <button id="loadBtn">LOAD</button>
+  <button id="autoBtn" style="border-color:var(--line);background:#11141b;color:var(--text);">AUTO-REFRESH: OFF</button>
+</div>
+
+<main>
+  <section class="panel">
+    <div class="hd">EQUITY &amp; PRICE
+      <span class="legend">
+        <span><i style="background:var(--text)"></i>price</span>
+        <span><i style="background:var(--up)"></i>equity</span>
+      </span>
+    </div>
+    <div id="chartWrap"><canvas id="chart"></canvas></div>
+  </section>
+
+  <div class="col">
+    <section class="panel">
+      <div class="hd">PORTFOLIO <span id="updated" style="float:right;color:var(--dim);"></span></div>
+      <div class="statGrid">
+        <div class="stat"><span>TOTAL VALUE</span><b id="sEquity">—</b></div>
+        <div class="stat"><span>PROFIT / LOSS</span><b id="sPnl">—</b></div>
+        <div class="stat"><span>CASH</span><b id="sCash">—</b></div>
+        <div class="stat"><span>BTC HELD</span><b id="sBtc">—</b></div>
+        <div class="stat"><span>TRADES</span><b id="sTrades">—</b></div>
+        <div class="stat"><span>WIN RATE</span><b id="sWin">—</b></div>
+      </div>
+    </section>
+    <section class="panel">
+      <div class="hd">ACTIVITY FEED</div>
+      <div id="feed"><div style="color:var(--dim)">Paste your raw state.json URL above and hit LOAD.</div></div>
+    </section>
+  </div>
+</main>
+
+<script>
+"use strict";
+const $ = id => document.getElementById(id);
+const fmt$ = n => (n<0?"-$":"$") + Math.abs(n).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2});
+const START_CASH = 10000;
+let autoTimer = null;
+let lastData = null;
+
+function setPill(text, cls){ const e=$("statePill"); e.textContent=text; e.className="pill "+(cls||""); }
+
+async function load(){
+  let url = $("url").value.trim();
+  if(!url){ setPill("NO URL","off"); return; }
+  // cache-bust so GitHub's CDN doesn't serve a stale copy
+  const bust = (url.includes("?")?"&":"?") + "t=" + Date.now();
+  try{
+    const r = await fetch(url + bust, {cache:"no-store"});
+    if(!r.ok) throw new Error("HTTP "+r.status);
+    const d = await r.json();
+    lastData = d;
+    setPill("LOADED " + new Date().toLocaleTimeString([], {hour12:false}), "live");
+    render(d);
+  }catch(e){
+    setPill("LOAD FAILED","off");
+    $("feed").innerHTML = `<div class="err">Couldn't load that URL (${e.message}).<br>
+      Check it's the <b>raw</b> link and the repo is <b>public</b>. It should look like:<br>
+      https://raw.githubusercontent.com/USERNAME/REPO/main/state.json</div>`;
+  }
+}
+
+function render(d){
+  const hist = d.history || [];
+  const last = hist.length ? hist[hist.length-1] : null;
+  const price = last ? last.p : 0;
+  const equity = (d.cash||0) + (d.btc||0)*price;
+  const pnl = equity - START_CASH;
+
+  if(last) $("bigPrice").innerHTML = `<small>BTC/USD</small>${fmt$(price)}`;
+  $("sEquity").textContent = fmt$(equity);
+  const pe=$("sPnl"); pe.textContent=(pnl>=0?"+":"")+fmt$(pnl); pe.className=pnl>=0?"pos":"neg";
+  $("sCash").textContent = fmt$(d.cash||0);
+  $("sBtc").textContent = (d.btc||0).toFixed(6);
+  $("sTrades").textContent = (d.trades||[]).length;
+  const sells=(d.trades||[]).filter(t=>t.side==="SELL");
+  $("sWin").textContent = sells.length ? Math.round(100*sells.filter(t=>t.pnl>0).length/sells.length)+"%" : "—";
+  $("updated").textContent = d.updated ? "as of "+new Date(d.updated).toLocaleString() : "";
+
+  const feed=$("feed"); feed.innerHTML="";
+  (d.log||[]).forEach(l=>{
+    const cls = /^BUY/.test(l.msg)?"buy":/^SELL/.test(l.msg)?"sell":"";
+    const div=document.createElement("div");
+    const t=new Date(l.t).toLocaleTimeString([],{hour12:false});
+    div.innerHTML=`<span class="t">${t}</span><span class="${cls}">${l.msg.replace(/</g,"&lt;")}</span>`;
+    feed.appendChild(div);
+  });
+
+  drawChart(hist, d.trades||[]);
+}
+
+function drawChart(hist, trades){
+  const cv=$("chart"), wrap=$("chartWrap");
+  const w=wrap.clientWidth, h=wrap.clientHeight, dpr=window.devicePixelRatio||1;
+  cv.width=w*dpr; cv.height=h*dpr;
+  const c=cv.getContext("2d"); c.scale(dpr,dpr); c.clearRect(0,0,w,h);
+  if(hist.length<2){ c.fillStyle="#5b6272"; c.font="11px JetBrains Mono"; c.fillText("waiting for data…",14,24); return; }
+
+  // left axis = price, right axis = equity, both normalized to their own range
+  const prices=hist.map(x=>x.p), eqs=hist.map(x=>x.equity);
+  const pLo=Math.min(...prices), pHi=Math.max(...prices), pPad=(pHi-pLo)*0.15||pHi*0.001;
+  const eLo=Math.min(...eqs), eHi=Math.max(...eqs), ePad=(eHi-eLo)*0.15||eHi*0.001;
+  const X=i=>8+(w-16)*i/(hist.length-1);
+  const YP=v=>h-18-(h-30)*(v-(pLo-pPad))/((pHi+pPad)-(pLo-pPad));
+  const YE=v=>h-18-(h-30)*(v-(eLo-ePad))/((eHi+ePad)-(eLo-ePad));
+
+  c.strokeStyle="#161a22"; c.fillStyle="#5b6272"; c.font="9px JetBrains Mono";
+  for(let g=0;g<4;g++){ const y=18+(h-30)*g/3; c.beginPath(); c.moveTo(0,y); c.lineTo(w,y); c.stroke(); }
+
+  function line(arr,Y,color,width){ c.strokeStyle=color; c.lineWidth=width; c.beginPath();
+    arr.forEach((v,i)=> i?c.lineTo(X(i),Y(v)):c.moveTo(X(i),Y(v))); c.stroke(); }
+  line(eqs, YE, "#27d17f", 1.5);
+  line(prices, YP, "#c8cdd8", 1.5);
+
+  // trade markers on the price line
+  trades.forEach(tr=>{
+    const idx = hist.findIndex(x=>x.t===tr.t);
+    const i = idx>=0?idx: null;
+    if(i===null) return;
+    const x=X(i), y=YP(tr.price);
+    c.fillStyle=tr.side==="BUY"?"#27d17f":"#ff4d5e"; c.beginPath();
+    if(tr.side==="BUY"){c.moveTo(x,y+10);c.lineTo(x-5,y+18);c.lineTo(x+5,y+18);}
+    else{c.moveTo(x,y-10);c.lineTo(x-5,y-18);c.lineTo(x+5,y-18);}
+    c.closePath(); c.fill();
+  });
+}
+
+$("loadBtn").addEventListener("click", load);
+$("url").addEventListener("keydown", e=>{ if(e.key==="Enter") load(); });
+$("autoBtn").addEventListener("click", ()=>{
+  if(autoTimer){ clearInterval(autoTimer); autoTimer=null; $("autoBtn").textContent="AUTO-REFRESH: OFF"; }
+  else { autoTimer=setInterval(load, 60000); $("autoBtn").textContent="AUTO-REFRESH: ON (60s)"; load(); }
+});
+window.addEventListener("resize", ()=>{ if(lastData) drawChart(lastData.history||[], lastData.trades||[]); });

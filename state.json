@@ -1,0 +1,12 @@
+{
+  "cash": 10000,
+  "btc": 0,
+  "emaFast": null,
+  "emaSlow": null,
+  "lastSignal": null,
+  "lastBuyCost": null,
+  "ticks": 0,
+  "trades": [],
+  "history": [],
+  "log": []
+}
