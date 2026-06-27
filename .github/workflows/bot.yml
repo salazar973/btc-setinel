@@ -1,0 +1,40 @@
+name: BTC Sentinel Bot
+
+# Runs the paper-trading bot in the cloud on a schedule.
+# No computer of yours needs to be on.
+
+on:
+  schedule:
+    - cron: '*/5 * * * *'   # every 5 minutes (the fastest GitHub allows)
+  workflow_dispatch:          # also lets you run it by hand from the Actions tab
+
+# allow the job to push the updated state.json back to the repo
+permissions:
+  contents: write
+
+# if a run is still going when the next is due, don't pile up
+concurrency:
+  group: btc-bot
+  cancel-in-progress: false
+
+jobs:
+  trade:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Get the code
+        uses: actions/checkout@v4
+
+      - name: Run one bot tick
+        run: node bot.js
+
+      - name: Save updated state
+        run: |
+          git config user.name "btc-sentinel-bot"
+          git config user.email "bot@users.noreply.github.com"
+          git add state.json
+          if git diff --staged --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "tick: $(date -u '+%Y-%m-%d %H:%M UTC')"
+            git push
+          fi
