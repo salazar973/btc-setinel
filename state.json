@@ -1,11 +1,11 @@
 {
   "cash": 10000,
   "btc": 0,
-  "emaFast": 60167.506567925724,
-  "emaSlow": 60255.9174744218,
+  "emaFast": 60162.67469137552,
+  "emaSlow": 60242.75216511908,
   "lastSignal": null,
   "lastBuyCost": null,
-  "ticks": 14,
+  "ticks": 15,
   "trades": [],
   "history": [
     {
@@ -105,9 +105,20 @@
       "equity": 10000,
       "f": 60167.506567925724,
       "sl": 60255.9174744218
+    },
+    {
+      "t": "2026-06-28T01:37:38.935Z",
+      "p": 60150.595,
+      "equity": 10000,
+      "f": 60162.67469137552,
+      "sl": 60242.75216511908
     }
   ],
   "log": [
+    {
+      "t": "2026-06-28T01:37:38.930Z",
+      "msg": "Warm-up complete — now watching for crossovers"
+    },
     {
       "t": "2026-06-27T23:35:54.986Z",
       "msg": "Warming up averages (14/15)"
@@ -165,5 +176,5 @@
       "msg": "Warming up averages (1/15)"
     }
   ],
-  "updated": "2026-06-27T23:35:55.034Z"
+  "updated": "2026-06-28T01:37:38.935Z"
 }
